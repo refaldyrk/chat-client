@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onion Chat</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            text-align: center;
+            color: #007bff;
+        }
+
+        #chat {
+            border: 1px solid #ccc;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+            background-color: #fff;
+            border-radius: 5px;
+        }
+
+        #messageInput {
+            width: calc(100% - 20px);
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        #sendButton {
+            width: 100%;
+            padding: 8px;
+            font-size: 16px;
+            border: none;
+            background-color: #007bff;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #sendButton:hover {
+            background-color: #0056b3;
+        }
+
+        /* Style for chat messages */
+        p {
+            margin: 5px 0;
+            padding: 5px;
+            background-color: #eee;
+            border-radius: 5px;
+        }
+
+        /* Style for your messages */
+        .my-message {
+            color: #007bff;
+            background-color: #d6e7ff;
+        }
+
+        .system-message {
+            color: #f8062a;
+            background-color: #c5c7cb;
+        }
+
+        /* Style for username badge */
+        .badge {
+            font-size: 12px;
+            padding: 3px 8px;
+            background-color: #007bff;
+            color: #fff;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+
+<body>
+<h1>Onion Chat</h1>
+<div id="chat"></div>
+<div>
+    <input type="text" id="messageInput" placeholder="Type your message" onkeydown="handleKeyPress(event)">
+    <button id="sendButton" onclick="sendMessage()">Send</button>
+</div>
+
+<script>
+    const baseURL = prompt("Enter SSE base URL (e.g., http://localhost:8080):");
+    const roomID = prompt("Enter Room ID:");
+    const clientID = generateRandomID();
+
+    if (!baseURL || !roomID) {
+        alert("Base URL and Room ID are required!");
+        window.location.href = "about:blank";
+    }
+
+    const eventSource = new EventSource(`${baseURL}/?room_id=${roomID}&client_id=${clientID}`);
+    const chatDiv = document.getElementById('chat');
+    const messageInput = document.getElementById('messageInput');
+
+    eventSource.onmessage = function (event) {
+        const message = event.data;
+        if (event.data.split(":")[0] == clientID) {
+            return;
+        }
+        const isSystemMessage = event.data.split(":")[0] === "system";
+        const username = SplitMessage(message)[0];
+        const content = SplitMessage(message)[1];
+        appendMessage(username, content, isSystemMessage);
+    };
+
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (message !== "") {
+            fetch(`${baseURL}/send?room_id=${roomID}&client_id=${clientID}&message=${message}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            });
+            appendMessage('me', message, false);
+            messageInput.value = '';
+        }
+    }
+
+    function appendMessage(username, content, isSystemMessage) {
+        const p = document.createElement('p');
+        p.innerHTML = isSystemMessage ? `<span class="badge">System</span>${content}` : `<span class="badge">${username}</span>${content}`;
+        if (isSystemMessage) {
+            p.classList.add('system-message');
+        }
+        chatDiv.appendChild(p);
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+    }
+
+    function generateRandomID() {
+        return Math.random().toString(36).substr(2, 8);
+    }
+
+    function SplitMessage(message) {
+        return message.split(":");
+    }
+
+    function handleKeyPress(event) {
+        if (event.key === "Enter") {
+            sendMessage();
+        }
+    }
+</script>
+</body>
+
+</html>
